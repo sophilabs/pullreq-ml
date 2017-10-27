@@ -1,13 +1,13 @@
 'use strict';
 
 const MongoClient = require('mongodb').MongoClient
-  , assert = require('assert')
   , co = require('co')
   , progress = require('progress')
-  , request = require('request-promise');
-
-// Over SSH
-const sourceURL = 'mongodb://ghtorrentro:ghtorrentro@localhost:2701/github';
+  , request = require('request-promise')
+  , path = require('path')
+  , fs = require('fs')
+  , fsExtra = require('fs-extra')
+  , async = require('async');
 
 // Local
 const destinationURL = 'mongodb://github:github@localhost:27017/github';
@@ -18,172 +18,23 @@ const githubAccessToken = 'ba0fc7545a9010f8e18f67eed8041433a7cbf206';
 const owner = 'nodejs';
 const repo = 'node';
 
-function *fetchProjects() {
-  var sourceDB = yield MongoClient.connect(sourceURL);
+function *fetchAllPages(baseUrl, destinationCollection, objectName, pageEstimate) {
   var destinationDB = yield MongoClient.connect(destinationURL);
   console.log("Connected correctly to server");
 
-  const sourceCollection = sourceDB.collection('repos');
-
-  var total = yield sourceCollection.count({ name: repo, "owner.login": owner });
-  console.log('repos #', total);
-  var pullRequests = sourceCollection.find({ name: repo, "owner.login": owner });
-
-  var bar = new progress(
-    'fetching [:bar] :rate repos/s :percent :etas',
-    { total: total }
-  );
-
-  var destinationCollection = destinationDB.collection('repos');
-  // Create ordered bulk, for unordered initializeUnorderedBulkOp()
-  var bulk = destinationCollection.initializeOrderedBulkOp();
-
-  // Iterate over the cursor
-  while(yield pullRequests.hasNext()) {
-    var doc = yield pullRequests.next();
-    bulk.insert(doc);
-    bar.tick();
-  }
-
-  console.log('Inserting results');
-  var result = yield bulk.execute();
-
-  sourceDB.close();
-  destinationDB.close();
-}
-
-function *fetchPullRequests () {
-  var sourceDB = yield MongoClient.connect(sourceURL);
-  var destinationDB = yield MongoClient.connect(destinationURL);
-  console.log("Connected correctly to server");
-
-  const sourceCollection = sourceDB.collection('pull_requests');
-  yield sourceCollection.remove({});
-
-  var total = yield sourceCollection.count({ repo: repo, owner: owner });
-  console.log('pull_req #', total);
-  var pullRequests = sourceCollection.find({ repo: repo, owner: owner });
-
-  var bar = new progress(
-    'fetching [:bar] :rate pull_req/s :percent :etas',
-    { total: total }
-  );
-
-  var destinationCollection = destinationDB.collection('pull_requests');
-  // Create ordered bulk, for unordered initializeUnorderedBulkOp()
-  var bulk = destinationCollection.initializeOrderedBulkOp();
-
-  // Iterate over the cursor
-  while(yield pullRequests.hasNext()) {
-    var doc = yield pullRequests.next();
-    bulk.insert(doc);
-    bar.tick();
-  }
-
-  console.log('Inserting results');
-  var result = yield bulk.execute();
-
-  sourceDB.close();
-  destinationDB.close();
-}
-
-function *fetchPullRequestComments () {
-  var sourceDB = yield MongoClient.connect(sourceURL);
-  var destinationDB = yield MongoClient.connect(destinationURL);
-  console.log("Connected correctly to server");
-
-  const sourceCollection = sourceDB.collection('pull_request_comments');
-  yield sourceCollection.remove({});
-
-  var total = yield sourceCollection.count({ repo: repo, owner: owner });
-  console.log('pull_req comments #', total);
-  var pullRequests = sourceCollection.find({ repo: repo, owner: owner });
-
-  var bar = new progress(
-    'fetching [:bar] :rate comments/s :percent :etas',
-    { total: total }
-  );
-
-  var destinationCollection = destinationDB.collection('pull_request_comments');
-  // Create ordered bulk, for unordered initializeUnorderedBulkOp()
-  var bulk = destinationCollection.initializeOrderedBulkOp();
-
-  // Iterate over the cursor
-  while(yield pullRequests.hasNext()) {
-    var doc = yield pullRequests.next();
-    bulk.insert(doc);
-    bar.tick();
-  }
-
-  console.log('Inserting results');
-  var result = yield bulk.execute();
-
-  sourceDB.close();
-  destinationDB.close();
-}
-
-function *fetchUserProfiles () {
-  var sourceDB = yield MongoClient.connect(sourceURL);
-  var destinationDB = yield MongoClient.connect(destinationURL);
-  console.log("Connected correctly to server");
-
-  var destinationCollection = destinationDB.collection('users');
-  yield destinationCollection.remove({});
-
-  var userLogins = yield destinationDB
-    .collection('pull_requests')
-    .distinct("user.login");
-  console.log('pull_req users #', userLogins.length);
-
-  var sourceCollection = sourceDB.collection('users');
-
-  var total = yield sourceCollection.count({ login: { $in: userLogins } });
-  console.log('found users #', total);
-  var users = sourceCollection.find({ login: { $in: userLogins }});
-
-  var bar = new progress(
-    'fetching [:bar] :rate users/s :percent :etas',
-    { total: total }
-  );
-
-  var destinationCollection = destinationDB.collection('users');
-  // Create ordered bulk, for unordered initializeUnorderedBulkOp()
-  var bulk = destinationCollection.initializeOrderedBulkOp();
-
-  // Iterate over the cursor
-  while(yield users.hasNext()) {
-    var doc = yield users.next();
-    bulk.insert(doc);
-    bar.tick();
-  }
-
-  console.log('Inserting results');
-  var result = yield bulk.execute();
-
-  sourceDB.close();
-  destinationDB.close();
-}
-
-function *fetchAPICommits() {
-  var pageEstimate = 200;
-
-  var destinationDB = yield MongoClient.connect(destinationURL);
-  console.log("Connected correctly to server");
-
-  var destinationCollection = destinationDB.collection('raw_commits');
+  var destinationCollection = destinationDB.collection(destinationCollection);
   yield destinationCollection.remove({});
 
   var bar = new progress(
-    'fetching [:bar] :rate commit pages/s :percent :etas',
+    `fetching [:bar] :rate ${objectName} pages/s :percent :etas`,
     { total: pageEstimate }
   );
 
-  console.log('Downloading commits');
+  console.log(`Downloading ${objectName} pages`);
   var bulk = destinationCollection.initializeOrderedBulkOp();
 
   for(var page_number=1; ;++page_number) {
-    const url = `https://api.github.com/repos/${owner}/${repo}/commits?` +
-      `per_page=100&page=${page_number}`;
+    const url = `${baseUrl}&per_page=100&page=${page_number}`;
     var commits = yield request({
       uri: url,
       json: true,
@@ -200,60 +51,179 @@ function *fetchAPICommits() {
   }
 
   console.log('Inserting results');
-  var result = yield bulk.execute();
+  yield bulk.execute();
 
   destinationDB.close();
 }
 
-function *fetchCommits () {
-  var sourceDB = yield MongoClient.connect(sourceURL);
-  var destinationDB = yield MongoClient.connect(destinationURL);
+function *fetchCommits() {
+  const baseUrl = `http://api.github.com/repos/${owner}/${repo}/commits?`;
+  yield fetchAllPages(baseUrl, 'commits', 'commit', 100);
+}
+
+function *fetchPullRequests() {
+  const baseUrl = `http://api.github.com/repos/${owner}/${repo}/pulls?state=all&sort=created&direction=ascending`
+  yield fetchAllPages(baseUrl, 'pulls', 'pull req', 100);
+}
+
+function *fetchCommitDiffs() {
+  const destinationDB = yield MongoClient.connect(destinationURL);
   console.log("Connected correctly to server");
 
-  var destinationCollection = destinationDB.collection('commits');
-  yield destinationCollection.remove({});
+  const destinationDir = path.join(process.cwd(), 'pull_diffs');
+  yield fsExtra.ensureDir(destinationDir);
 
-  var commitDigests = yield destinationDB
-    .collection('raw_commits')
-    .distinct("sha");
-  console.log('commits #', commitDigests.length);
+  const sourceCollection = destinationDB.collection('pulls');
 
-  var sourceCollection = sourceDB.collection('commits');
+  console.log(`Computing needed commit_diff pages`);
+  const sourceDocs = sourceCollection.find({});
+  let jobs = [];
+  while(yield sourceDocs.hasNext()) {
+    const sourceDoc = yield sourceDocs.next();
+    const destinationPath = path.join(destinationDir, `${sourceDoc.id}.diff`);
 
-  var bar = new progress(
-    'fetching [:bar] :rate commits/s :percent :etas',
-    { total: commitDigests.length }
+    if(fs.existsSync(destinationPath)) {
+      continue;
+    }
+    jobs.push({ 
+      id: sourceDoc.id,
+      url: sourceDoc.diff_url,
+      destinationPath: destinationPath
+    });
+  }
+  destinationDB.close();  
+  
+  console.log(`Downloading commit_diff pages #${jobs.length}`);
+  const bar = new progress(
+    `fetching [:bar] :rate commit_diff pages/s :percent :etas`,
+    { total: jobs.length }
   );
 
-  var destinationCollection = destinationDB.collection('commits');
-  // Create ordered bulk, for unordered initializeUnorderedBulkOp()
-  var bulk = destinationCollection.initializeOrderedBulkOp();
+  for(var i in jobs) {
+    var job = jobs[i];
 
-  for(var i = 0; i < commitDigests.length; ++ i) {
-    var doc = yield sourceCollection.findOne({ sha: commitDigests[i] });
-    if(doc) {
-      // console.log(`Commit ${commitDigests[i]} not found`);
-      bulk.insert(doc);
+    try {
+      var rawDiff = request({
+        uri: job.url,
+        json: false,
+        headers: { 'User-Agent': 'Igui\'s requester' },
+        pool: {
+          maxSockets: 1
+        },
+        qs: { access_token: githubAccessToken }
+      });
+      fs.writeFileSync(job.destinationPath, rawDiff);
+    } catch(error) {
+      if(error.statusCode != 404) {
+          throw error;
+      }
+      else {
+         fs.writeFileSync(job.destinationPath, "");
+      }
+    } finally {
+      bar.tick();
+    }
+  }
+}
+
+function *fetchUserEvents() {
+  const destinationDB = yield MongoClient.connect(destinationURL);
+  console.log("Connected correctly to server");
+
+  const sourceCollection = destinationDB.collection('pulls');
+  const destinationCollection = destinationDB.collection('events');
+
+  const eventUrls = yield sourceCollection.distinct('user');
+
+  const bar = new progress(
+    `fetching [:bar] :rate user_event timeline/s :percent :etas`,
+    { total: eventUrls.length }
+  );
+
+  var bulk = destinationCollection.initializeOrderedBulkOp();
+  for(var i in eventUrls) {
+    const baseUrl = eventUrls[i].events_url.replace('{/privacy}', '') + '?';
+    
+    const MAX_ALLOWED_PAGE_NUMBER = 4
+    for(var page_number=1; page_number < MAX_ALLOWED_PAGE_NUMBER ;++page_number) {
+      const url = `${baseUrl}&per_page=100&page=${page_number}`;
+      var elements = yield request({
+        uri: url,
+        json: true,
+        headers: { 'User-Agent': 'Igui\'s requester' },
+        qs: { access_token: githubAccessToken }
+      });
+      if(elements.length == 0) {
+        break;
+      }
+      elements.forEach((doc) => {
+        bulk.insert(doc);
+      });
     }
     bar.tick();
   }
 
   console.log('Inserting results');
-  var result = yield bulk.execute();
-
-  sourceDB.close();
+  yield bulk.execute();
+  
   destinationDB.close();
 }
 
+async function fetchUserInfo() {
+  const destinationDB = await MongoClient.connect(destinationURL);
+  console.log("Connected correctly to server");
+
+  const sourceCollection = destinationDB.collection('pulls');
+  const destinationCollection = destinationDB.collection('user');
+
+  await destinationCollection.deleteMany({});
+
+  const users = await sourceCollection.distinct('user.login');
+  const userQL = fs.readFileSync('fetchUser.ql', {encoding: 'utf-8'});
+  const bar = new progress(
+    `fetching [:bar] :rate user info/s :percent :etas`,
+    { total: users.length }
+  );
+
+  const fetchTasks = users.map((user) => {
+    return (callback) => {
+      const query = userQL.replace('${user}', JSON.stringify(user));
+      request.post({
+        uri: 'https://api.github.com/graphql',
+        body: { query: query },
+        auth: {
+          bearer: githubAccessToken,
+          sendImmediately: true
+        },
+        json: true,
+        headers: { 'User-Agent': 'Igui\'s requester' },
+        qs: { access_token: githubAccessToken }
+      })
+      .then(async (response) => {
+        // console.log('answer', JSON.stringify(response.data.user, null, 4));
+        await destinationCollection.insert(response.data.user);
+        bar.tick();
+        callback();
+      });
+    }
+  });
+
+  const insertResults = async () => {
+    destinationDB.close();
+  }
+
+  async.parallelLimit(fetchTasks, 5, insertResults);
+}
+
 function unhandledRejection(err) {
-  console.error(err)
-  process.exit(1)
+  console.error(err);
+  process.exit(1);
 }
 
 process.on('unhandledRejection', unhandledRejection);
 
 // co(fetchCommits);
-// co(fetchProjects);
 // co(fetchPullRequests);
-//co(fetchAPICommits);
-co(fetchCommits);
+// co(fetchCommitDiffs);
+// co(fetchUserEvents);
+co(fetchUserInfo);
