@@ -1,5 +1,5 @@
-{ 
-  user(login: ${user}) {
+{
+  user(login: <%= JSON.stringify(user) %>) {
     id,
     name,
     merged: pullRequests(states: MERGED) {

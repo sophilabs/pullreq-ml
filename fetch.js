@@ -7,20 +7,12 @@ const MongoClient = require('mongodb').MongoClient
   , path = require('path')
   , fs = require('fs')
   , fsExtra = require('fs-extra')
-  , async = require('async');
+  , async = require('async')
+  , _ = require('lodash');
 
-// Local
-const destinationURL = 'mongodb://github:github@localhost:27017/github';
-
-// Info
-const githubAccessToken = 'ba0fc7545a9010f8e18f67eed8041433a7cbf206';
-
-const owner = 'nodejs';
-const repo = 'node';
 
 function *fetchAllPages(baseUrl, destinationCollection, objectName, pageEstimate) {
   var destinationDB = yield MongoClient.connect(destinationURL);
-  console.log("Connected correctly to server");
 
   var destinationCollection = destinationDB.collection(destinationCollection);
   yield destinationCollection.remove({});
@@ -68,7 +60,6 @@ function *fetchPullRequests() {
 
 function *fetchCommitDiffs() {
   const destinationDB = yield MongoClient.connect(destinationURL);
-  console.log("Connected correctly to server");
 
   const destinationDir = path.join(process.cwd(), 'pull_diffs');
   yield fsExtra.ensureDir(destinationDir);
@@ -128,7 +119,6 @@ function *fetchCommitDiffs() {
 
 function *fetchUserEvents() {
   const destinationDB = yield MongoClient.connect(destinationURL);
-  console.log("Connected correctly to server");
 
   const sourceCollection = destinationDB.collection('pulls');
   const destinationCollection = destinationDB.collection('events');
@@ -171,7 +161,6 @@ function *fetchUserEvents() {
 
 async function fetchUserInfo() {
   const destinationDB = await MongoClient.connect(destinationURL);
-  console.log("Connected correctly to server");
 
   const sourceCollection = destinationDB.collection('pulls');
   const destinationCollection = destinationDB.collection('user');
@@ -215,15 +204,75 @@ async function fetchUserInfo() {
   async.parallelLimit(fetchTasks, 5, insertResults);
 }
 
+async function fetchIntegrators() {
+  const pageSize = 50;
+  const destinationDB = await MongoClient.connect(destinationURL);
+
+  const destinationCollection = destinationDB.collection('integrators');
+  await destinationCollection.deleteMany({});
+
+  const pullRequestQL = _.template(fs.readFileSync('pullRequest.ql', {encoding: 'utf-8'}));
+  let bar = null;
+
+  const handleResponse = (query, response) => {
+    const pullRequests = response.data.repository.pullRequests;
+    if (bar == null) {
+      const totalPages = Math.ceil(pullRequests.totalCount / pageSize); 
+      console.log('Total pages', totalPages);
+      bar = new progress(
+        `fetching [:bar] :rate merge request pages/s :percent :etas`,
+        { total: totalPages }
+      );
+    }
+
+    bar.tick();  
+
+    // console.log('Got nodes', pullRequests.nodes.length);
+    if (pullRequests.pageInfo.hasNextPage) {
+      // console.log('Got more pages', pullRequests.pageInfo.endCursor);
+      fetchNextPage(pullRequests.pageInfo.endCursor);
+    } else {
+      console.log('Finished');      
+    }
+  }
+
+  const fetchNextPage = (after) => {
+    const query = pullRequestQL({
+      pageSize: pageSize,
+      after: after
+    });
+    request.post({
+      uri: 'https://api.github.com/graphql',
+      body: { query: query },
+      auth: {
+        bearer: githubAccessToken,
+        sendImmediately: true
+      },
+      json: true,
+      headers: { 'User-Agent': 'Igui\'s requester' },
+    })
+    .then((response) => {
+      handleResponse(query, response);
+    });
+  }
+  
+  fetchNextPage();
+}
+
 function unhandledRejection(err) {
   console.error(err);
   process.exit(1);
 }
 
+
+
 process.on('unhandledRejection', unhandledRejection);
 
-// co(fetchCommits);
-// co(fetchPullRequests);
-// co(fetchCommitDiffs);
-// co(fetchUserEvents);
-co(fetchUserInfo);
+
+
+fetchCommits();
+fetchPullRequests();
+fetchCommitDiffs();
+fetchUserEvents();
+fetchUserInfo();
+fetchIntegrators();
