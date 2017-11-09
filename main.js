@@ -5,6 +5,7 @@ const fetchPullRequests = require('./tasks/fetchPullRequests')
 const fetchCommitDiffs = require('./tasks/fetchCommitDiffs')
 const fetchUserEvents = require('./tasks/fetchUserEvents')
 const fetchUserInfo = require('./tasks/fetchUserInfo')
+const fetchIntegrators = require('./tasks/fetchIntegrators')
 
 const tasks = [
   {
@@ -28,8 +29,8 @@ const tasks = [
     cb: fetchUserInfo
   },
   {
-    name: 'fetchIntegrators'
-    // cb: fetchIntegrators,
+    name: 'fetchIntegrators',
+    cb: fetchIntegrators
   }
 ]
 

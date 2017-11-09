@@ -1,5 +1,5 @@
-{ 
-  repository(owner: "nodejs", name: "node"){
+{
+  repository(owner: <%= JSON.stringify(owner) %>, name: <%= JSON.stringify(name) %>){
     name,
     pullRequests(first:<%= pageSize %>, states: MERGED <% if(after) { %>, after: <%= JSON.stringify(after) %><% } %>) {
       nodes {
@@ -25,6 +25,6 @@
         startCursor,
       },
       totalCount
-    }    
+    }
   }
 }
