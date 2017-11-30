@@ -6,6 +6,7 @@ const fetchCommitDiffs = require('./tasks/fetchCommitDiffs')
 const fetchUserEvents = require('./tasks/fetchUserEvents')
 const fetchUserInfo = require('./tasks/fetchUserInfo')
 const fetchIntegrators = require('./tasks/fetchIntegrators')
+const computeHotness = require('./tasks/computeHotness')
 
 const tasks = [
   {
@@ -31,6 +32,10 @@ const tasks = [
   {
     name: 'fetchIntegrators',
     cb: fetchIntegrators
+  },
+  {
+    name: 'computeHotness',
+    cb: computeHotness
   }
 ]
 

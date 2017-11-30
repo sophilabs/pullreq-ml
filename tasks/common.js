@@ -4,6 +4,7 @@ const Progress = require('progress')
 const request = require('request-promise')
 const config = require('../config')
 const _ = require('lodash')
+const { execFile, spawn } = require('child_process')
 
 /**
  *
@@ -47,6 +48,85 @@ async function fetchAllPages (options) {
   options.resumeInfo.update(options.db, { complete: true })
 };
 
+function executeGit (cmdargs, options) {
+  return new Promise((resolve, reject) => {
+    const fetchCMD = spawn('git', cmdargs, options)
+
+    fetchCMD.stdout.on('data', (data) => {
+      process.stdout.write(data)
+    })
+
+    fetchCMD.stderr.on('data', (data) => {
+      process.stderr.write(data)
+    })
+
+    fetchCMD.on('exit', (code) => {
+      if (code) {
+        reject(new Error(
+          `Child process exited with code ${code}. Args ${cmdargs.join(' ')}.`
+        ))
+      } else {
+        resolve(code)
+      }
+    })
+  })
+}
+
+function executeGitLines (cmdargs, options, onLine) {
+  return new Promise((resolve, reject) => {
+    const fetchCMD = spawn('git', cmdargs, options)
+
+    let lastLine = ''
+
+    fetchCMD.stdout.on('data', (data) => {
+      const encodedInputData = data.toString('utf-8')
+      let encodedData
+      if (lastLine) {
+        encodedData = lastLine + encodedInputData
+      } else {
+        encodedData = encodedInputData
+      }
+
+      const encodedDataLines = encodedData.split('\n')
+      lastLine = _.last(encodedDataLines)
+      _.chain(encodedDataLines).dropRight(1).each(onLine).value()
+    })
+
+    fetchCMD.stderr.on('data', (data) => {
+      process.stderr.write(data)
+    })
+
+    fetchCMD.on('exit', (code) => {
+      if (lastLine) {
+        onLine(lastLine)
+      }
+
+      if (code) {
+        reject(new Error(
+          `Child process exited with code ${code}. Args ${cmdargs.join(' ')}`
+        ))
+      } else {
+        resolve(code)
+      }
+    })
+  })
+}
+
+function executeGitOutput (cmdargs, options) {
+  return new Promise((resolve, reject) => {
+    execFile('git', cmdargs, options, (error, stdout) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve(stdout)
+      }
+    })
+  })
+}
+
 module.exports = {
-  fetchAllPages: fetchAllPages
+  fetchAllPages: fetchAllPages,
+  executeGit: executeGit,
+  executeGitOutput: executeGitOutput,
+  executeGitLines: executeGitLines
 }
