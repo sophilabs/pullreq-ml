@@ -7,6 +7,8 @@ const fetchUserEvents = require('./tasks/fetchUserEvents')
 const fetchUserInfo = require('./tasks/fetchUserInfo')
 const fetchIntegrators = require('./tasks/fetchIntegrators')
 const computeHotness = require('./tasks/computeHotness')
+const guessCommitPRRefs = require('./tasks/guessCommitPRRefs')
+const setUsersId = require('./tasks/setUsersId')
 
 const tasks = [
   {
@@ -36,6 +38,14 @@ const tasks = [
   {
     name: 'computeHotness',
     cb: computeHotness
+  },
+  {
+    name: 'guessCommitPRRefs',
+    cb: guessCommitPRRefs
+  },
+  {
+    name: 'setUsersId',
+    cb: setUsersId
   }
 ]
 

@@ -5,10 +5,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "node",
+      "name": "Python",
+      "type": "python",
       "request": "launch",
-      "name": "Launch Program",
-      "program": "${workspaceFolder}/fetch.js"
+      "stopOnEntry": true,
+      "pythonPath": "${config:python.pythonPath}",
+      "program": "${file}",
+      "cwd": "${workspaceRoot}",
+      "env": {},
+      "envFile": "",
+      "debugOptions": [
+        "WaitOnAbnormalExit",
+        "WaitOnNormalExit",
+        "RedirectOutput"
+      ]
     }
   ]
 }
