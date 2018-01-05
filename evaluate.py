@@ -1,20 +1,29 @@
 """Does some nice evaluations on the data"""
-from collections import OrderedDict
+import importlib
+from collections import OrderedDict, namedtuple
 from datetime import datetime
 from math import log1p
 from re import findall
 
 import numpy
 from pandas.io.json import json_normalize
-from sklearn import model_selection
-from sklearn.metrics import confusion_matrix
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.naive_bayes import GaussianNB
-from sklearn.svm import SVC
 from pymongo import MongoClient
+from sklearn import model_selection
+from sklearn.externals import joblib
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.svm import SVC
+
+SEED = 7
+
+ResultTuple = namedtuple(
+    'Result',
+    [
+        'name',
+        'cv_results',
+        'predictions',
+        'confusion_matrix'
+    ]
+)
 
 class DataBuilder(object):
     """Builds a representation of the data"""
@@ -143,70 +152,131 @@ class DataBuilder(object):
         )
         return self.data
 
-def main():
-    "Builds and evaluates data"
-
+def build_splitted_data(seed):
+    "Builds splitted data to run tests"
     data_builder = DataBuilder()
     data = data_builder.build_data()
     dataset = json_normalize(data)
 
-    #print(dataset.head(20))
-    print(dataset.describe())
-    #print(dataset.groupby('was_merged').size())
-    #dataset.plot(kind='box', subplots=True, layout=(2,2), sharex=False, sharey=False)
-    #dataset.hist()
-    #scatter_matrix(dataset)
-    #plt.show()
+    print(dataset.describe(percentiles=None))
 
     _rows, num_features = dataset.shape
     array = dataset.values
     features = array[:, slice(0, num_features-1)]
     clasification = array[:, (num_features-1)]
     validation_size = 0.10
-    seed = 7
-    (x_train, _x_test, y_train, _y_test) = model_selection.train_test_split(
+    return model_selection.train_test_split(
         features,
         clasification,
         test_size=validation_size,
         random_state=seed
     )
 
+def explore_one_model(model_str, model_constructor_kwargs, x_train, y_train):
+    "Explore one model by doing cross validation"
+    class_data = model_str.split(".")
+    module_path = ".".join(class_data[:-1])
+    class_str = class_data[-1]
+
+    print('Training', class_str)
+
+    module = importlib.import_module(module_path)
+    model_class = getattr(module, class_str)
+    model = model_class(**model_constructor_kwargs)
+
+    kfold = model_selection.KFold(n_splits=10, random_state=SEED)
+
+    cv_results = model_selection.cross_val_score(
+        model,
+        x_train,
+        y_train,
+        cv=kfold,
+        scoring='f1',
+        n_jobs=-1
+    )
+
+    y_pred = model_selection.cross_val_predict(
+        model,
+        x_train,
+        y_train,
+        cv=kfold,
+        n_jobs=-1
+    )
+    unique, counts = numpy.unique(
+        numpy.array(y_pred, dtype=int), return_counts=True
+    )
+    predictions = dict(zip(unique, counts))
+    conf_matrix = confusion_matrix(y_train, y_pred)
+    return ResultTuple(class_str, cv_results, predictions, conf_matrix)
+
+def explore_all_classifiers():
+    "Builds and evaluates data"
+
+    (x_train, _x_test, y_train, _y_test) = build_splitted_data(SEED)
+
     models = [
-        ('LR', LogisticRegression()),
-        ('LDA', LinearDiscriminantAnalysis()),
-        ('KNN', KNeighborsClassifier()),
-        ('CART', DecisionTreeClassifier()),
-        ('NB', GaussianNB()),
-        #('SVM', SVC())
+        ('sklearn.naive_bayes.BernoulliNB', {}),
+        ('sklearn.tree.DecisionTreeClassifier', {}),
+        ('sklearn.tree.ExtraTreeClassifier', {}),
+        ('sklearn.ensemble.ExtraTreesClassifier', {}),
+        ('sklearn.naive_bayes.GaussianNB', {}),
+        ('sklearn.neighbors.KNeighborsClassifier', {}),
+        ('sklearn.discriminant_analysis.LinearDiscriminantAnalysis', {}),
+        ('sklearn.svm.LinearSVC', {}),
+        ('sklearn.linear_model.LogisticRegression', {}),
+        ('sklearn.linear_model.LogisticRegressionCV', {}),
+        ('sklearn.neural_network.MLPClassifier', {}),
+        ('sklearn.neighbors.NearestCentroid', {}),
+        ('sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis', {}),
+        ('sklearn.ensemble.RandomForestClassifier', {}),
+        ('sklearn.linear_model.RidgeClassifier', {}),
+        ('sklearn.linear_model.RidgeClassifierCV', {}),
+
+        ('sklearn.svm.SVC', {}),
+        ('sklearn.linear_model.SGDClassifier',
+            {'max_iter': 1000, 'tol': 1e-3}),
+        ('sklearn.linear_model.Perceptron',
+            {'max_iter': 1000, 'tol': 1e-3}),
+        ('sklearn.linear_model.PassiveAggressiveClassifier',
+            {'max_iter': 1000, 'tol': 1e-3}),
+        ('sklearn.ensemble.GradientBoostingClassifier', {}),
     ]
 
-    # evaluate each model in turn
-    for name, model in models:
-        kfold = model_selection.KFold(n_splits=10, random_state=seed)
+    results = sorted(
+        (
+            explore_one_model(model_str, kwargs, x_train, y_train)
+            for model_str, kwargs in models
+        ),
+        key=lambda r: r.cv_results.mean(),
+        reverse=True
+    )
 
-        cv_results = model_selection.cross_val_score(
-            model,
-            x_train,
-            y_train,
-            cv=kfold,
-            scoring='f1',
-            n_jobs=-1
-        )
+    for result in results:
+        print('Name: {} Mean {} Std {}'.format(
+            result.name,
+            result.cv_results.mean(),
+            result.cv_results.std()
+        ))
+        print('  Predictions {}'.format(result.predictions))
+        print('  Confusion Matrix:\n{}'.format(result.confusion_matrix))
 
-        y_pred = model_selection.cross_val_predict(
-            model,
-            x_train,
-            y_train,
-            cv=kfold,
-            n_jobs=-1
-        )
-        unique, counts = numpy.unique(
-            numpy.array(y_pred, dtype=int), return_counts=True
-        )
-        print('Predictions', dict(zip(unique, counts)))
-        print('Confustion Matrix')
-        print(confusion_matrix(y_train, y_pred))
-        print("%s: %f (%f)" % (name, cv_results.mean(), cv_results.std()))
+
+def main():
+    "Builds and evaluates data"
+    (x_train, x_test, y_train, y_test) = build_splitted_data(SEED)
+    model = SVC()
+    model.fit(x_train, y_train)
+    y_pred = model.predict(x_test)
+    print('Report on Test data')
+    print(classification_report(
+        y_test,
+        y_pred,
+        target_names=['not merged', 'merged'])
+    )
+    joblib.dump(model, 'classifier.pkl')
+    print('Dumped classifier data to classifier.pkl')
+
 
 if __name__ == '__main__':
+    explore_all_classifiers()
     main()
