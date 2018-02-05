@@ -71,17 +71,12 @@ You will need the following:
 
 ## Built With
 
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+* [scikit-learn](http://scikit-learn.org/) - Used their algorithms to estimate PR merge predictions.
+* [MongoDB](https://api.mongodb.com/python/current/) - Used to store Github downloaded project data.
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags).
+Feel free to make a Pull Request if you find a bug or want to implement a feature. We welcome any help.
 
 ## Authors
 
