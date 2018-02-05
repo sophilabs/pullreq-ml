@@ -102,3 +102,6 @@ redistributed under the terms specified in the [license](LICENSE) file.
 
 pullreq-ml is maintained and funded by sophilabs, inc. The names and logos for
 sophilabs are trademarks of sophilabs, inc.
+
+[sophilabs-image]: https://s3.amazonaws.com/sophilabs-assets/logo/logo_300x66.gif
+[sophilabs-url]: https://sophilabs.co
