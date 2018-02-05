@@ -62,12 +62,31 @@ You will need the following:
    ```bash
    node fetch.js
    ```
-7. Evaluate Pull Request Acceptance for your the repository
+7. Train and evaluate Pull Request Acceptance for your repository
    ```bash
    python evaluate.py
    ```
+   You should see an output like the following one
+   ```
+   Report on Test data
+             precision    recall  f1-score   support
 
+    not merged       0.76      0.22      0.34       264
+        merged       0.78      0.98      0.87       753
 
+    avg / total       0.78      0.78      0.73      1017
+
+   Dumped classifier data to classifier.pkl
+   ```
+   This command generates a `classifier.pkl` binary file which can be used to predict any PR on the target Project.
+
+## TODO
+
+* Build a file to predict a particular PR against the trained model. A command like:
+  ```bash
+  > python classify.py https://github.com/nodejs/node/pull/11107
+  Will not be merged!
+  ```
 
 ## Built With
 
