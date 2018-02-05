@@ -25,9 +25,9 @@ async function fetchDiffs (destinationDB, resumeInfo) {
     return `pull/${pullReqNumber}/head`
   })
 
-  const fetchArgs = ['fetch', '-j4', 'origin'].concat(remotePulls)
+  const fetchArgs = ['fetch', 'origin'].concat(remotePulls)
   await executeGit(fetchArgs, {cwd: destinationDir})
-  await resumeInfo.update({ complete: true })
+  await resumeInfo.update(destinationDB, { complete: true })
 }
 
 async function performTask (task) {

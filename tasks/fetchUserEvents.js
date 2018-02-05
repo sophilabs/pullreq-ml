@@ -47,7 +47,7 @@ async function fetchUserEvents (destinationDB, resumeInfo) {
       })
     }
     await bulk.execute()
-    resumeInfo.update({ page: i + 1 })
+    resumeInfo.update(destinationDB, { page: i + 1 })
     bar.tick()
   }
 }

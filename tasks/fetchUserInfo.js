@@ -52,7 +52,9 @@ async function fetchUserInfo (destinationDB, resumeInfo) {
         headers: { 'User-Agent': 'Igui\'s requester' },
         qs: { access_token: config.GITHUB_ACCESS_TOKEN }
       }).then(async (response) => {
-        await destinationCollection.insert(response.data.user)
+        if (response.data && response.data.user) {
+          await destinationCollection.insert(response.data.user)
+        }
         bar.tick()
         resumeInfo.update(destinationDB, { page: idx + 1 })
         callback()

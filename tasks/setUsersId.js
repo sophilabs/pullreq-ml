@@ -9,16 +9,20 @@ async function resetTask (destinationDB, resumeInfo) {
 async function setUsersId (destinationDB, resumeInfo) {
   const sourceCollection = await destinationDB.collection('user')
   const ids = await sourceCollection.distinct('id')
-  const bulk = sourceCollection.initializeUnorderedBulkOp()
 
-  for (var i in ids) {
-    const base64UserId = ids[i]
-    const asciiId = Buffer.from(base64UserId, 'base64').toString().substring(7)
-    const intId = parseInt(asciiId)
-    bulk.find({id: base64UserId}).updateOne({$set: { userId: intId }})
+  if (ids.length > 0) {
+    const bulk = sourceCollection.initializeUnorderedBulkOp()
+
+    for (var i in ids) {
+      const base64UserId = ids[i]
+      const asciiId = Buffer.from(base64UserId, 'base64').toString().substring(7)
+      const intId = parseInt(asciiId)
+      bulk.find({id: base64UserId}).updateOne({$set: { userId: intId }})
+    }
+
+    await bulk.execute()
   }
 
-  await bulk.execute()
   await resumeInfo.update(destinationDB, { complete: true })
 }
 

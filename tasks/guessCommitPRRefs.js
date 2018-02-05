@@ -29,12 +29,14 @@ async function computeCommitRefsPR (destinationDB, resumeInfo) {
     }
   )
 
-  const collection = await destinationDB.collection('mergedprs_commits')
-  var bulk = collection.initializeOrderedBulkOp()
-  prs.forEach((obj) => {
-    bulk.insert(obj)
-  })
-  await bulk.execute()
+  if (prs.length > 0) {
+    const collection = await destinationDB.collection('mergedprs_commits')
+    var bulk = collection.initializeOrderedBulkOp()
+    prs.forEach((obj) => {
+      bulk.insert(obj)
+    })
+    await bulk.execute()
+  }
   await resumeInfo.update(destinationDB, { complete: true })
 }
 
