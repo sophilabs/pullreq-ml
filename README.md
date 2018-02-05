@@ -73,6 +73,7 @@ You will need the following:
 
 * [scikit-learn](http://scikit-learn.org/) - Used their algorithms to estimate PR merge predictions.
 * [MongoDB](https://api.mongodb.com/python/current/) - Used to store Github downloaded project data.
+* [Git](https://git-scm.com/) - Used to compute diffs and analyze PR commit deltas.
 
 ## Contributing
 
