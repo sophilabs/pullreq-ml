@@ -20,11 +20,9 @@ async function fetchUserInfo (destinationDB, resumeInfo) {
   let pendingUsers = []
   for (var i in users) {
     const user = users[i]
-    const exists = await destinationCollection.count({
-      id: Buffer.from(`04:User${user.id}`, 'binary').toString('base64')
-    })
+    const exists = await destinationCollection.count({ login: user.login })
     if (!exists) {
-      pendingUsers.push(user.login)
+      pendingUsers.push(user)
     }
   }
 
@@ -49,10 +47,11 @@ async function fetchUserInfo (destinationDB, resumeInfo) {
           sendImmediately: true
         },
         json: true,
-        headers: { 'User-Agent': 'Igui\'s requester' },
-        qs: { access_token: config.GITHUB_ACCESS_TOKEN }
+        headers: { 'User-Agent': 'Igui\'s requester', 'Authorization': `token ${config.GITHUB_ACCESS_TOKEN}` },
+        qs: { }
       }).then(async (response) => {
         if (response.data && response.data.user) {
+          response.data.user.login = user.login
           await destinationCollection.insert(response.data.user)
         }
         bar.tick()
@@ -82,7 +81,7 @@ async function performTask (task) {
 
     if (resumeInfo.complete) {
       console.log('Completed')
-      return
+      // return
     }
     if (resumeInfo.reset) {
       console.log('Resetting')
@@ -90,9 +89,24 @@ async function performTask (task) {
     }
 
     await fetchUserInfo(resumeDB, resumeInfo)
+
   } finally {
     resumeDB.close()
   }
 }
 
 module.exports = performTask
+
+async function main () {
+  process.on('unhandledRejection', (err) => {
+    console.error(err)
+    process.exit(1)
+  })
+
+  await performTask({ name: 'fetchUserInfo' })
+}
+
+if (require.main === module) {
+  main()
+}
+

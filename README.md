@@ -1,8 +1,7 @@
 # Github PR prediction (pullreq-ml)
 
-![ETL process](https://d2wlcd8my7k9h4.cloudfront.net/media/images/575815bd-fb2d-4886-9c0f-90d1b07a9683.png)
 
-This Node/Python library builds a model to predict if a particular Pull Request (PR) will be accepted when it is created, by learning information about a Github Project. The aim of this library is to aid Project integrator in managing PRs for a particular project. You can find more information about the model and how in this [article](https://sophilabs.co/blog/pr-prediction-machine-learning).
+This Node/Python library creates ml features for Pull Requests by learning information about a Github Project. The aim of this library is to aid data scientists build ml models for predicting pull request behaviour 
 
 ## Getting Started
 
@@ -38,9 +37,9 @@ You will need the following:
    npm install
    pip install -r requirements.txt
    ```
-4. (Optional) Create a user for your MongoDB instance
+4. Run mongo
    ```bash
-   echo "db.createUser({ user: 'github', 'pwd': 'github', roles: ['readWrite'] })" | mongo github
+   docker run -p 27017:27017 --name some-mongo -d mongo
    ```
 5. Replace the contents of [`config.js`](config.js) with the actual repo and database authentication. For example
    ```javascript
@@ -50,73 +49,18 @@ You will need the following:
         // Token
         GITHUB_ACCESS_TOKEN: '<your token here>',
         // Repo Information for example for https://github.com/Netflix/pygenie you should put
-        REPO_OWNER: 'Netflix',
-        REPO_NAME: 'pygenie'
     }
    ```
-5. Clone the target repo inside the `targetrepo` folder
+5. Clone the target repos inside the `targetrepo` folder
    ```bash
-   git clone https://github.com/Netflix/pygenie.git targetrepo
+   cd targetrepo
+   git clone https://github.com/Netflix/pygenie.git 
    ```
 6. Start fetching Repo information
    ```bash
    node fetch.js
    ```
-7. Train and evaluate Pull Request Acceptance for your repository
+7. Create a features df for the PRs
    ```bash
    python evaluate.py
    ```
-   You should see an output like the following one
-   ```
-   Report on Test data
-             precision    recall  f1-score   support
-
-    not merged       0.76      0.22      0.34       264
-        merged       0.78      0.98      0.87       753
-
-    avg / total       0.78      0.78      0.73      1017
-
-   Dumped classifier data to classifier.pkl
-   ```
-   This command generates a `classifier.pkl` binary file which can be used to predict any PR on the target Project.
-
-## TODO
-
-* Build a file to predict a particular PR against the trained model. A command like:
-  ```bash
-  > python classify.py https://github.com/nodejs/node/pull/11107
-  Will not be merged!
-  ```
-
-## Built With
-
-* [scikit-learn](http://scikit-learn.org/) - Used their algorithms to estimate PR merge predictions.
-* [MongoDB](https://api.mongodb.com/python/current/) - Used to store Github downloaded project data.
-* [Git](https://git-scm.com/) - Used to compute diffs and analyze PR commit deltas.
-
-## Contributing
-
-Feel free to make a Pull Request if you find a bug or want to implement a feature. We welcome any help.
-
-## Authors
-
-* **Ignacio Avas** - *Initial work* - [igui](https://github.com/igui)
-
-## Acknowledgments
-
-* Pablo Grill for his insight and knowledge over Machine Learning
-
-## License
-
-pullreq-ml is Copyright (c) 2018 sophilabs, inc. It is free software, and may be
-redistributed under the terms specified in the [license](LICENSE) file.
-
-## About
-
-[![sophilabs][sophilabs-image]][sophilabs-url]
-
-pullreq-ml is maintained and funded by sophilabs, inc. The names and logos for
-sophilabs are trademarks of sophilabs, inc.
-
-[sophilabs-image]: https://s3.amazonaws.com/sophilabs-assets/logo/logo_300x66.gif
-[sophilabs-url]: https://sophilabs.co

@@ -16,7 +16,7 @@ async function resetTask (destinationDB, resumeInfo) {
   await resumeInfo.update(destinationDB, { reset: false })
 }
 
-async function getCommitedFiles (commit, commitedFilesCache) {
+async function getCommitedFiles (commit, commitedFilesCache, repoName) {
   const files = commitedFilesCache[commit]
   if (files) {
     return files
@@ -25,25 +25,25 @@ async function getCommitedFiles (commit, commitedFilesCache) {
   const commitFiles = []
   await executeGitLines(
     ['diff-tree', '--no-commit-id', '--name-only', '-r', commit],
-    { cwd: path.join(process.cwd(), 'targetrepo'), maxBuffer: 500000 },
+    { cwd: path.join(process.cwd(), `targetrepo/${repoName}`), maxBuffer: 500000 },
     (line) => { commitFiles.push(line) }
   )
   return (commitedFilesCache[commit] = commitFiles)
 }
 
-async function diffTree (base, head) {
+async function diffTree (base, head, repoName) {
   const lines = []
   await executeGitLines(
     ['diff-tree', '--no-commit-id', '--name-only', '-M', '-C', '-B', '-r',
       base, head],
-    { cwd: path.join(process.cwd(), 'targetrepo') },
+    { cwd: path.join(process.cwd(), `targetrepo/${repoName}`) },
     (line) => { lines.push(line) }
   )
 
   const statLine = await executeGitOutput(
     ['diff-tree', '--no-commit-id', '--shortstat', '-M', '-C', '-B', '-r',
       base, head ],
-    { cwd: path.join(process.cwd(), 'targetrepo') }
+    { cwd: path.join(process.cwd(), `targetrepo/${repoName}`) }
   )
 
   const statRegex = /\d+\D+(\d+)?(\D+(\d+))?/
@@ -59,17 +59,17 @@ async function diffTree (base, head) {
   }
 }
 
-async function getAllCommitedFiles (minDate, maxDate, commitedFilesCache) {
+async function getAllCommitedFiles (minDate, maxDate, commitedFilesCache, repoName) {
   const rawCommits = await executeGitOutput(
     ['log', '--until', maxDate, '--after', minDate, '--format=format:%H'],
-    { cwd: path.join(process.cwd(), 'targetrepo') }
+    { cwd: path.join(process.cwd(), `targetrepo/${repoName}`) }
   )
   const commits = _.filter(rawCommits.split('\n'), _.identity)
 
   const result = {}
 
   for (var i in commits) {
-    const files = await getCommitedFiles(commits[i], commitedFilesCache)
+    const files = await getCommitedFiles(commits[i], commitedFilesCache, repoName)
     files.forEach((filePath) => {
       result[filePath] = (result[filePath] || 0) + 1
     })
@@ -77,10 +77,10 @@ async function getAllCommitedFiles (minDate, maxDate, commitedFilesCache) {
   return result
 }
 
-async function commitExists (sha1) {
+async function commitExists (sha1, repoName) {
   return new Promise((resolve) => {
     const execPromise = executeGit(['cat-file', '-e', sha1], {
-      cwd: path.join(process.cwd(), 'targetrepo')
+      cwd: path.join(process.cwd(), `targetrepo/${repoName}`)
     })
     execPromise.then(
       (exitCode) => { resolve(true) },
@@ -88,9 +88,9 @@ async function commitExists (sha1) {
   })
 }
 
-async function computePullRequest (pullRequest, commitedFilesCache) {
-  if (!(await commitExists(pullRequest.head.sha)) ||
-      !(await commitExists(pullRequest.base.sha))) {
+async function computePullRequest (pullRequest, commitedFilesCache, repoName) {
+  if (!(await commitExists(pullRequest.head.sha, repoName)) ||
+      !(await commitExists(pullRequest.base.sha, repoName))) {
     // This means the PR may be merged there is no information here
     return NaN
   }
@@ -99,11 +99,9 @@ async function computePullRequest (pullRequest, commitedFilesCache) {
   const minDate = moment(maxDate).subtract(COMMIT_HOTNESS_AGE_DAYS, 'd')
     .utc().format()
 
-  const files = await getAllCommitedFiles(minDate, maxDate,
-    commitedFilesCache)
+  const files = await getAllCommitedFiles(minDate, maxDate, commitedFilesCache, repoName)
 
-  const diffTreeResult = await diffTree(pullRequest.base.sha,
-    pullRequest.head.sha)
+  const diffTreeResult = await diffTree(pullRequest.base.sha, pullRequest.head.sha, repoName)
 
   if (diffTreeResult.lines.length === 0) {
     return {
@@ -130,30 +128,32 @@ async function computePullRequest (pullRequest, commitedFilesCache) {
   }
 }
 
-async function computeHotnessChurn (destinationDB, resumeInfo) {
+async function computeHotnessChurn (destinationDB, resumeInfo, repoName) {
   const commitedFilesCache = {}
-  const sourceCollection = destinationDB.collection('pull_requests')
+  const pullRequests = await destinationDB.collection('pull_requests').find(
+      { repoOwner: resumeInfo.task.repoOwner, repoName: resumeInfo.task.repoName }
+  ).sort({ id: 1 }).toArray()
+
   const destinationCollection = destinationDB.collection('hotness')
 
-  const totalPullRequests = await sourceCollection.count({})
+  const totalPullRequests = pullRequests.length
   const progress = new Progress(
     `computing [:bar] :rate pull requests/s :percent :etas`,
     { total: totalPullRequests, curr: 0 }
   )
 
-  const pullRequestIds = (await sourceCollection.distinct('id')).sort()
-  for (var idx in pullRequestIds) {
-    const pullRequestId = pullRequestIds[idx]
-    const pullRequest = await sourceCollection.findOne({ id: pullRequestId })
-    const computed = await computePullRequest(pullRequest,
-      commitedFilesCache)
+  for (var idx in pullRequests) {
+    const pullRequest = pullRequests[idx]
+    const computed = await computePullRequest(pullRequest, commitedFilesCache, repoName)
 
     const pullRequestForDB = {
       pullRequest: pullRequest.id,
       number: pullRequest.number,
       hotness: computed.hotness,
       churn: computed.churn,
-      hasTests: computed.hasTests
+      hasTests: computed.hasTests,
+      repoOwner: resumeInfo.task.repoOwner,
+      repoName: resumeInfo.task.repoName
     }
 
     console.log('pullRequestForDB', pullRequestForDB)
@@ -190,10 +190,26 @@ async function performTask (task) {
       await resetTask(resumeDB, resumeInfo)
     }
 
-    await computeHotnessChurn(resumeDB, resumeInfo)
+    await computeHotnessChurn(resumeDB, resumeInfo, task.repoName)
   } finally {
     resumeDB.close()
   }
 }
 
 module.exports = performTask
+
+async function main () {
+  process.on('unhandledRejection', (err) => {
+    console.error(err)
+    process.exit(1)
+  })
+
+  await performTask({ name: 'computeHotness' })
+}
+
+if (require.main === module) {
+  main()
+}
+
+
+

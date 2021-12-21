@@ -24,7 +24,7 @@ ResumeInfo.prototype.loadFrom = async function (db) {
     complete: false
   }
 
-  const taskName = this.task.name
+  const taskName = `${this.task.repoOwner}_${this.task.repoName}_${this.task.name}`
   let dbResumeInfo = await resumeCollection.findOne({ task: taskName })
   const options = _.chain(dbResumeInfo).defaults(defaults).pick(this.allowedAttrs).value()
 
@@ -43,7 +43,7 @@ ResumeInfo.prototype.update = async function (db, options) {
   const cleanedInfo = _.pick(this, ['page', 'cursor', 'totalPages', 'complete'])
   const resumeCollection = db.collection('resume')
   await resumeCollection.update(
-    {task: this.task.name},
+    {task: `${this.task.repoOwner}_${this.task.repoName}_${this.task.name}`},
     {$set: _.extend({}, cleanedInfo, options, { reset: false })},
     {upsert: true}
   )

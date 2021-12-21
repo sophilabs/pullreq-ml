@@ -2,11 +2,10 @@
 
 const db = require('../db')
 const ResumeInfo = require('./resumeInfo')
-const config = require('../config')
 const common = require('./common')
 
 async function performTask (task) {
-  const baseUrl = `http://api.github.com/repos/${config.REPO_OWNER}/${config.REPO_NAME}/pulls?state=all&sort=created&direction=ascending`
+  const baseUrl = `http://api.github.com/repos/${task.repoOwner}/${task.repoName}/pulls?state=all&sort=created&direction=ascending`
   const resumeDB = await db()
   try {
     const resumeInfo = await new ResumeInfo(task).loadFrom(resumeDB)
@@ -28,7 +27,9 @@ async function performTask (task) {
       baseUrl: baseUrl,
       objectName: 'pull request',
       destinationCollectionName: 'pull_requests',
-      resumeInfo: resumeInfo
+      resumeInfo: resumeInfo,
+      repoOwner: resumeInfo.task.repoOwner,
+      repoName: resumeInfo.task.repoName
     })
   } finally {
     resumeDB.close()
@@ -36,3 +37,16 @@ async function performTask (task) {
 }
 
 module.exports = performTask
+
+async function main () {
+  process.on('unhandledRejection', (err) => {
+    console.error(err)
+    process.exit(1)
+  })
+
+  await performTask({ name: 'fetchPullRequests' })
+}
+
+if (require.main === module) {
+  main()
+}

@@ -59,7 +59,7 @@ async function fetchIntegrators (destinationDB, resumeInfo) {
 
   let bar
 
-  const promise = new Promise((resolve) => {
+  return new Promise((resolve) => {
     const handleResponse = (query, response) => {
       const pullRequests = response.data.repository.pullRequests
       if (!bar) {
@@ -93,8 +93,8 @@ async function fetchIntegrators (destinationDB, resumeInfo) {
       const query = pullRequestQL({
         pageSize: PAGE_SIZE,
         after: after,
-        owner: config.REPO_OWNER,
-        name: config.REPO_NAME
+        owner: resumeInfo.task.repoOwner,
+        name: resumeInfo.task.repoName,
       })
       request.post({
         uri: 'https://api.github.com/graphql',
@@ -112,8 +112,6 @@ async function fetchIntegrators (destinationDB, resumeInfo) {
 
     return fetchNextPage(resumeInfo.cursor)
   })
-
-  return promise
 }
 
 async function performTask (task) {
@@ -136,3 +134,18 @@ async function performTask (task) {
 }
 
 module.exports = performTask
+
+async function main () {
+  process.on('unhandledRejection', (err) => {
+    console.error(err)
+    process.exit(1)
+  })
+
+  await performTask({ name: 'fetchIntegrators' })
+}
+
+if (require.main === module) {
+  main()
+}
+
+
