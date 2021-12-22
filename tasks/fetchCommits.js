@@ -19,7 +19,7 @@ async function performTask (task) {
       return
     }
     if (!resumeInfo.totalPages) {
-      resumeInfo.totalPages = 100
+      resumeInfo.totalPages = 1000
     }
 
     await common.fetchAllPages({

@@ -12,7 +12,6 @@ These instructions will get you a copy of the project up and running on your loc
 What things you need to install the software and how to install them
 
 You will need the following:
-* [Python 3.6](https://www.python.org/downloads/) or newer
 * [Node 8](https://nodejs.org/en/download/) or newer
 * [MongoDB](https://www.mongodb.com/download-center) 3.2 or newer
 * [Git](https://git-scm.com/downloads)
@@ -24,24 +23,18 @@ You will need the following:
 1. Clone this repository into your machine:
 
     ```bash
-    git clone https://github.com/sophilabs/pullreq-ml.git
+    git clone https://github.com/benny-hal/pullreq-ml.git
     ```
-2. (Optional) Install your local copy into a virtual environment. For example using the [venv](https://docs.python.org/3/library/venv.html) library you can do the following.
-   ```bash
-   python -m venv venv
-   source venv/bin/activate
-   ```
-3. Install dependencies
+2. Install dependencies
    ```bash
    cd pullreq-ml # or pullreq-ml-master
    npm install
-   pip install -r requirements.txt
    ```
-4. Run mongo
+3. Run mongo
    ```bash
    docker run -p 27017:27017 --name some-mongo -d mongo
    ```
-5. Replace the contents of [`config.js`](config.js) with the actual repo and database authentication. For example
+4. Replace the contents of [`config.js`](config.js) with the actual repo and database authentication. For example
    ```javascript
     module.exports = {
         // Local Mongo DB
@@ -62,5 +55,5 @@ You will need the following:
    ```
 7. Create a features df for the PRs
    ```bash
-   python evaluate.py
+   node query.js
    ```

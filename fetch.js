@@ -8,7 +8,7 @@ const fetchUserInfo = require('./tasks/fetchUserInfo')
 const fetchIntegrators = require('./tasks/fetchIntegrators')
 const computeHotness = require('./tasks/computeHotness')
 const setUsersId = require('./tasks/setUsersId')
-const config = require('../config')
+const config = require('./config')
 
 const repoTasks = [
   {
@@ -30,7 +30,7 @@ const repoTasks = [
   {
     name: 'computeHotness',
     cb: computeHotness
-  },
+  }
 ]
 
 const otherTasks = [

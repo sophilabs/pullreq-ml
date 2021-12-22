@@ -44,6 +44,9 @@ class DataBuilder(object):
         social_conn = data.get('user_followers', 0) + data.get('user_following', 0)
 
         return OrderedDict([
+            ('repoOwner', data['repoOwner'] or 0),
+            ('repoName', data['repoName'] or 0),
+            ('PR', data['html_url'] or 0),
             ('created_friday', created_friday),
             ('description_complexity', description_coplexity),
             ('hotness', data['hotness'] or 0),
@@ -105,7 +108,9 @@ class DataBuilder(object):
 
             # All needed fields
             {'$project': {
-                "id": True,
+                "repoOwner": True,
+                "repoName": True,
+                "html_url": True,
                 "number": True,
                 "state": True,
                 "title": True,

@@ -52,10 +52,9 @@ async function diffTree (base, head, repoName) {
   if (match) {
     const insertions = match[1]
     const deletions = match[3]
-    const churn = parseInt(insertions || 0) + parseInt(deletions || 0)
-    return { lines: lines, churn: churn }
+    return { lines: lines, insertions: insertions || 0, deletions: deletions || 0 }
   } else {
-    return { lines: lines, churn: 0 }
+    return { lines: lines, insertions: 0, deletions: 0 }
   }
 }
 
@@ -106,7 +105,8 @@ async function computePullRequest (pullRequest, commitedFilesCache, repoName) {
   if (diffTreeResult.lines.length === 0) {
     return {
       hotness: 0,
-      churn: 0,
+      insertions: 0,
+      deletions: 0,
       hasTests: false
     }
   }
@@ -123,16 +123,17 @@ async function computePullRequest (pullRequest, commitedFilesCache, repoName) {
   const hotness = ocurrences[hotnessIdx]
   return {
     hotness: hotness,
-    churn: diffTreeResult.churn,
+    insertions: diffTreeResult.insertions,
+    deletions: diffTreeResult.deletions,
     hasTests: hasTests
   }
 }
 
-async function computeHotnessChurn (destinationDB, resumeInfo, repoName) {
+async function computeHotnessChurn (destinationDB, resumeInfo) {
   const commitedFilesCache = {}
   const pullRequests = await destinationDB.collection('pull_requests').find(
       { repoOwner: resumeInfo.task.repoOwner, repoName: resumeInfo.task.repoName }
-  ).sort({ id: 1 }).toArray()
+  ).toArray() // .sort({ id: 1 })
 
   const destinationCollection = destinationDB.collection('hotness')
 
@@ -142,15 +143,16 @@ async function computeHotnessChurn (destinationDB, resumeInfo, repoName) {
     { total: totalPullRequests, curr: 0 }
   )
 
-  for (var idx in pullRequests) {
+  for (let idx in pullRequests) {
     const pullRequest = pullRequests[idx]
-    const computed = await computePullRequest(pullRequest, commitedFilesCache, repoName)
+    const computed = await computePullRequest(pullRequest, commitedFilesCache, resumeInfo.task.repoName)
 
     const pullRequestForDB = {
       pullRequest: pullRequest.id,
       number: pullRequest.number,
       hotness: computed.hotness,
-      churn: computed.churn,
+      insertions: computed.insertions,
+      deletions: computed.deletions,
       hasTests: computed.hasTests,
       repoOwner: resumeInfo.task.repoOwner,
       repoName: resumeInfo.task.repoName
@@ -190,7 +192,7 @@ async function performTask (task) {
       await resetTask(resumeDB, resumeInfo)
     }
 
-    await computeHotnessChurn(resumeDB, resumeInfo, task.repoName)
+    await computeHotnessChurn(resumeDB, resumeInfo)
   } finally {
     resumeDB.close()
   }
@@ -204,7 +206,7 @@ async function main () {
     process.exit(1)
   })
 
-  await performTask({ name: 'computeHotness' })
+  await performTask({ name: 'computeHotness', repoOwner: 'Hippo-Analytics-Inc', repoName: 'lead-scoring-service' })
 }
 
 if (require.main === module) {
