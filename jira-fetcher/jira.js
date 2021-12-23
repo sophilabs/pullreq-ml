@@ -1,5 +1,5 @@
-const {Version2Client} = require('jira.js')
-const {getPR} = require('./pull_request')
+const { Version2Client } = require('jira.js');
+const { getPR } = require('./pull_request');
 
 const client = new Version2Client({
     host: 'https://myhippo.atlassian.net',
@@ -8,26 +8,31 @@ const client = new Version2Client({
             email: 'nalfasi@hippo.com',
             apiToken: process.env.TOKEN,
         },
-    }
-})
+    },
+});
 
 async function main() {
     const issues = await client.issueSearch.searchForIssuesUsingJql({
-        jql: 'project = Hippo AND updatedDate >= "2020-01-01" AND  status IN (Reopened) ORDER BY ID DESC'
-    })
+        jql: 'project = Hippo AND updatedDate >= "2020-01-01" AND  status IN (Reopened) ORDER BY ID DESC',
+    });
     // console.log(issues);
 
-    let i = 0
+    let i = 0;
+    const fs = require('fs');
+    const logStream = fs.createWriteStream('prs.csv', {flags: 'a'});
+    logStream.write('pr,bug\n');
     for (let issue of issues.issues) {
-        const {id, key: ticket} = issue
-        const identifier = ticket.substring(ticket.indexOf('-') + 1)
-        const pr = await getPR(id, identifier)
+        const { id, key: ticket } = issue;
+        const identifier = ticket.substring(ticket.indexOf('-')+1);
+        const pr = await getPR(id, identifier);
         if (!pr) continue;
 
-        console.log(`For ticket [${ticket}] PR found: [${pr}]`)
-        i++
+        console.log(`For ticket [${ticket}] PR found: [${pr}]`);
+        logStream.write(`${pr},true\n`);
+        i++;
         if (i > 3) break;
     }
+    logStream.end('');
 }
 
 main();
