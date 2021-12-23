@@ -3,6 +3,9 @@
 	import stateData from "./data";
 	import Illustration from "./components/Illustration.svelte";
 	import Slider from "./components/Slider.svelte";
+	import HeaderBar from "./components/HeaderBar.svelte";
+	import { Button } from 'attractions';
+
 	import * as d3 from "d3-interpolate";
 
 	let stateIndex = 1;
@@ -28,7 +31,7 @@
 	}
   </script>
 
-  <style>
+<style>
 	:global(body) {
 	  margin: 0;
 	  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
@@ -91,15 +94,17 @@
 	  display: block;
 	  width: 100%;
 	}
-  </style>
+</style>
 
   <svelte:body />
-
   <main
 	style="background: {background};"
   >
+  <HeaderBar />
 	<section>
 	  <h1>How safe is your PR?</h1>
+	  <Button filled>click me</Button>
+
 	  <div>
 		<p style="transform: translateX({$ratingPosition}%);">
 		  {#each stateData as { name }, i}
