@@ -1,10 +1,6 @@
 const db = require('./db')
-var wordcount = require('wordcount');
-
-const pipeline = [
-    {$match: {categories: "Bakery"}},
-    {$group: {_id: "$stars", count: {$sum: 1}}}
-];
+var wordcount = require('wordcount')
+const { createWriteStream } = require('fs')
 
 const aggregations = [
     // Hotness
@@ -68,16 +64,16 @@ const aggregations = [
 ]
 
 async function writeCsv (keys, objs, filePath) {
-    const writer = createWriteStream(filePath, {flags: 'w'});
-    await writer.write(`${keys.join(',')}\n`);
+    const writer = createWriteStream(filePath, {flags: 'w'})
+    await writer.write(`${keys.join(',')}\n`)
     for (const obj of objs) {
-        const vals = [];
+        const vals = []
         for (const key of keys) {
-            vals.push(obj[key]);
+            vals.push(obj[key])
         }
-        await writer.write(`"${vals.join('","')}"\n`);
+        await writer.write(`"${vals.join('","')}"\n`)
     }
-    writer.close();
+    writer.close()
 }
 
 async function main() {
@@ -112,7 +108,6 @@ async function main() {
   ]
 
   await writeCsv(keys, docs, 'training_hippo.csv')
-
 }
 
 if (require.main === module) {
