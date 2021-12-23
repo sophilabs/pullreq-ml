@@ -1,6 +1,6 @@
 export default [
     {
-      name: "Hideous",
+      name: "Risky",
       background: "#f2c0e6",
       paths: {
         mouth:
@@ -16,7 +16,7 @@ export default [
       }
     },
     {
-      name: "Ok",
+      name: "Average",
       background: "#faecc1",
       paths: {
         mouth:
@@ -32,7 +32,7 @@ export default [
       }
     },
     {
-      name: "Good",
+      name: "Safe",
       background: "#c9f9e5",
       paths: {
         mouth:
@@ -48,4 +48,3 @@ export default [
       }
     }
   ];
-  
