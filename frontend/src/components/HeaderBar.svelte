@@ -1,13 +1,12 @@
 <script>
-	export let header;
+    
 </script>
 
-
-<div class="header-navigation">
-    <span>git hub checker</span>
-</div>
-
 <style>
+    .github {
+        width: 40px;
+        left: 0;
+    }
 	.header-navigation {
 		background-color: black;
         top: 0;
@@ -17,3 +16,7 @@
         height: 40px;
 	}
 </style>
+
+<div class="header-navigation">
+    <img class="github" src={"assets/images/github-icon.png"} alt="github-icon" />
+</div>
