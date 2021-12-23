@@ -29,27 +29,34 @@ async function fetchUserEvents (destinationDB, resumeInfo) {
 
     const bulk = destinationCollection.initializeOrderedBulkOp()
     const MAX_PAGES_PER_USER = 4
+    let execute = false
     for (var pageNumber = 1; pageNumber < MAX_PAGES_PER_USER; ++pageNumber) {
       const url = `${baseUrl}&per_page=100&page=${pageNumber}`
 
       var elements = await request({
         uri: url,
         json: true,
-        headers: { 'User-Agent': 'Igui\'s requester' },
-        qs: { access_token: config.GITHUB_ACCESS_TOKEN }
+        headers: { 'User-Agent': 'Igui\'s requester', 'Authorization': `token ${config.GITHUB_ACCESS_TOKEN}` },
+        qs: { }
       })
 
       if (elements.length === 0) {
         break
+      } else {
+        execute = true
       }
       elements.forEach((doc) => {
         bulk.insert(doc)
       })
     }
-    await bulk.execute()
+    if (execute) {
+      await bulk.execute()
+    }
     resumeInfo.update(destinationDB, { page: i + 1 })
     bar.tick()
   }
+  await resumeInfo.update(destinationDB, { complete: true })
+
 }
 
 async function performTask (task) {
@@ -73,3 +80,17 @@ async function performTask (task) {
 }
 
 module.exports = performTask
+
+async function main () {
+  process.on('unhandledRejection', (err) => {
+    console.error(err)
+    process.exit(1)
+  })
+
+  await performTask({ name: 'fetchUserEvents' })
+}
+
+if (require.main === module) {
+  main()
+}
+

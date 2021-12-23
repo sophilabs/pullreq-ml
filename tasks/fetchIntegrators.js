@@ -13,7 +13,7 @@ function base64ToId (base64str) {
     .replace(/^\d+:\w+\D/, '')
 }
 
-async function insertPullRequests (destinationDB, pullRequests) {
+async function insertPullRequests (destinationDB, pullRequests, resumeInfo) {
   const collection = await destinationDB.collection('integrators')
 
   const bulk = collection.initializeOrderedBulkOp()
@@ -24,14 +24,20 @@ async function insertPullRequests (destinationDB, pullRequests) {
     _.chain(pullRequest.timeline.nodes)
       .filter((event) => { return !_.isEmpty(event) })
       .each((event) => {
-        const mappedEvent = {
-          id: base64ToId(event.id),
-          pull_request: pullRequestId,
-          actor: event.actor.login,
-          createdAt: event.createdAt,
-          url: event.url
+        if (!event.actor) {
+          console.log(event)
+        } else {
+          const mappedEvent = {
+            repoOwner: resumeInfo.task.repoOwner,
+            repoName: resumeInfo.task.repoName,
+            id: base64ToId(event.id),
+            pull_request: pullRequestId,
+            actor: event.actor.login,
+            createdAt: event.createdAt,
+            url: event.url
+          }
+          bulk.insert(mappedEvent)
         }
-        bulk.insert(mappedEvent)
       })
       .value()
   })
@@ -59,7 +65,7 @@ async function fetchIntegrators (destinationDB, resumeInfo) {
 
   let bar
 
-  const promise = new Promise((resolve) => {
+  return new Promise((resolve) => {
     const handleResponse = (query, response) => {
       const pullRequests = response.data.repository.pullRequests
       if (!bar) {
@@ -73,7 +79,7 @@ async function fetchIntegrators (destinationDB, resumeInfo) {
         resolve()
       }
 
-      insertPullRequests(destinationDB, pullRequests.nodes)
+      insertPullRequests(destinationDB, pullRequests.nodes, resumeInfo)
 
       resumeInfo.update(
         destinationDB,
@@ -93,8 +99,8 @@ async function fetchIntegrators (destinationDB, resumeInfo) {
       const query = pullRequestQL({
         pageSize: PAGE_SIZE,
         after: after,
-        owner: config.REPO_OWNER,
-        name: config.REPO_NAME
+        owner: resumeInfo.task.repoOwner,
+        name: resumeInfo.task.repoName,
       })
       request.post({
         uri: 'https://api.github.com/graphql',
@@ -112,8 +118,6 @@ async function fetchIntegrators (destinationDB, resumeInfo) {
 
     return fetchNextPage(resumeInfo.cursor)
   })
-
-  return promise
 }
 
 async function performTask (task) {
@@ -136,3 +140,18 @@ async function performTask (task) {
 }
 
 module.exports = performTask
+
+async function main () {
+  process.on('unhandledRejection', (err) => {
+    console.error(err)
+    process.exit(1)
+  })
+
+  await performTask({ name: 'fetchIntegrators' })
+}
+
+if (require.main === module) {
+  main()
+}
+
+

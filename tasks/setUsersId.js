@@ -47,3 +47,18 @@ async function performTask (task) {
 }
 
 module.exports = performTask
+
+async function main () {
+  process.on('unhandledRejection', (err) => {
+    console.error(err)
+    process.exit(1)
+  })
+
+  await performTask({ name: 'setUsersId' })
+}
+
+if (require.main === module) {
+  main()
+}
+
+

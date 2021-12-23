@@ -29,8 +29,8 @@ async function fetchAllPages (options) {
     const objects = await request({
       uri: url,
       json: true,
-      headers: { 'User-Agent': 'Igui\'s requester' },
-      qs: { access_token: config.GITHUB_ACCESS_TOKEN }
+      headers: { 'User-Agent': 'Igui\'s requester', 'Authorization': `token ${config.GITHUB_ACCESS_TOKEN}` },
+      qs: { }
     })
 
     if (objects.length === 0) {
@@ -38,7 +38,11 @@ async function fetchAllPages (options) {
     }
 
     var bulk = destinationCollection.initializeOrderedBulkOp()
-    _(objects).each((obj) => { bulk.insert(obj) })
+    _(objects).each((obj) => {
+      obj.repoOwner = options.repoOwner
+      obj.repoName = options.repoName
+      bulk.insert(obj)
+    })
     await bulk.execute()
     bar.tick()
     options.resumeInfo.page = pageNumber

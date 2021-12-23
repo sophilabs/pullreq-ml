@@ -12,7 +12,8 @@
     "request": "^2.83.0",
     "request-promise": "^4.2.2",
     "axios": "^0.24.0",
-    "jira.js": "^2.8.0"
+    "jira.js": "^2.8.0",
+    "wordcount": "^1.1.1"
   },
   "devDependencies": {
     "eslint": "^4.10.0",

@@ -3,4 +3,6 @@ targetrepo
 node_modules
 package-lock.json
 classifier.pkl
-
+.idea
+.gitBAK
+features.csv
