@@ -4,7 +4,7 @@
 	import Illustration from "./components/Illustration.svelte";
 	import Slider from "./components/Slider.svelte";
 	import * as d3 from "d3-interpolate";
-  
+
 	let stateIndex = 1;
 	let sliderPosition = spring(1 / (stateData.length - 1), {
 	  stiffness: 0.4,
@@ -19,7 +19,7 @@
 	  stiffness: 0.2,
 	  damping: 0.7
 	});
-  
+
 	$: {
 	  background = interpolate($sliderPosition);
 	  ratingPosition.set(
@@ -27,7 +27,7 @@
 	  );
 	}
   </script>
-  
+
   <style>
 	:global(body) {
 	  margin: 0;
@@ -44,7 +44,7 @@
 	}
 	section {
 	  width: 100%;
-	  max-width: 300px;
+	  max-width: 400px;
 	  max-height: 100%;
 	  overflow: hidden;
 	  margin: 0 auto 18px;
@@ -55,7 +55,7 @@
 	  justify-content: center;
 	}
 	h1 {
-	  width: 75%;
+	  width: 100%;
 	  margin: 0 auto 2rem;
 	  font-size: 44px;
 	  font-weight: 400;
@@ -92,14 +92,14 @@
 	  width: 100%;
 	}
   </style>
-  
+
   <svelte:body />
-  
+
   <main
 	style="background: {background};"
   >
 	<section>
-	  <h1>How was your ride?</h1>
+	  <h1>How safe is your PR?</h1>
 	  <div>
 		<p style="transform: translateX({$ratingPosition}%);">
 		  {#each stateData as { name }, i}
