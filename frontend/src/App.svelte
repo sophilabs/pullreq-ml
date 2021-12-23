@@ -28,18 +28,42 @@
       ((stateIndex - (stateData.length - 1)) / stateData.length) * 100
     );
   }
+
+  let urlInput = "";
+  const onSubmit = async (e) => {
+    console.log("submitted", urlInput);
+
+    isLoading.set(true);
+    console.log("isLoading", isLoading);
+
+    let postData = {
+      prURL: urlInput
+    };
+
+    let response = await fetch("/article/fetch/post/user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8",
+      },
+      body: JSON.stringify(postData),
+    });
+	isLoading.set(false);
+    let result = await response.json();
+    console.log(result);
+  };
 </script>
 
 <main style="background: {$data ? background : 'white'};">
   <section>
     <h1>How safe is your PR?</h1>
     <section class="github-link">
-      <TextField outline placeholder="Github link" />
+      <TextField outline placeholder="Github link" bind:value={urlInput} />
       <Button
         filled
         class="submit-default"
         on:click={() => {
-          data.set({});
+          onSubmit();
+          //   data.set({});
         }}><span class="submit-text">Rate Me!</span></Button
       >
     </section>
