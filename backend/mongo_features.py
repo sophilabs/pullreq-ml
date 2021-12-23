@@ -3,11 +3,11 @@ from pymongo import MongoClient
 os.environ['API_USER'] = 'root'
 os.environ['API_PASSWORD'] = 'iIhnQ4YdzqkY'
 
-DB_URL = 'ec2-54-72-230-18.eu-west-1.compute.amazonaws.com:27017/github'
+DB_URL = 'ec2-54-72-230-18.eu-west-1.compute.amazonaws.com:27017'
 DB_USER = 'root'
 DB_NAME= 'github'
 DB_PWD='iIhnQ4YdzqkY'
-MONGODB_URL=f'mongodb://{DB_USER}:{DB_PWD}@{DB_URL}?retryWrites=true&w=majority'
+MONGODB_URL=f'mongodb://{DB_USER}:{DB_PWD}@{DB_URL}/{DB_NAME}?retryWrites=true&w=majority'
 client = MongoClient(MONGODB_URL)
 database = client[DB_NAME]
 #
