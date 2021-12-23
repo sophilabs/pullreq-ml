@@ -1,11 +1,10 @@
 <script>
+	import { isLoading, data } from "./stores";
 	import { spring } from "svelte/motion";
 	import stateData from "./data";
 	import Illustration from "./components/Illustration.svelte";
 	import Slider from "./components/Slider.svelte";
-	import HeaderBar from "./components/HeaderBar.svelte";
-	import { Button } from 'attractions';
-
+	import { Button, TextField } from 'attractions';
 	import * as d3 from "d3-interpolate";
 
 	let stateIndex = 1;
@@ -33,6 +32,7 @@
 
 <style>
 	:global(body) {
+	  background: white;
 	  margin: 0;
 	  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
 		"Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
@@ -56,6 +56,23 @@
 	  flex-flow: column nowrap;
 	  align-items: stretch;
 	  justify-content: center;
+	}
+	.github-link {
+		width: 500px;
+		display: flex;
+		flex-direction: row;
+		align-items: baseline;
+	}
+	
+	:global(.submit-default) {
+		background: black !important;
+		color: white;
+		width: 120px;
+		margin-left: 15px;
+	}
+	:global(.submit-text) {
+		margin-left: auto;
+    	margin-right: auto;
 	}
 	h1 {
 	  width: 100%;
@@ -96,35 +113,37 @@
 	}
 </style>
 
-  <svelte:body />
-  <main
-	style="background: {background};"
-  >
-  <HeaderBar />
+<main
+	style="background: {$data ? background : 'white'};"
+>
 	<section>
-	  <h1>How safe is your PR?</h1>
-	  <Button filled>click me</Button>
-
-	  <div>
-		<p style="transform: translateX({$ratingPosition}%);">
-		  {#each stateData as { name }, i}
-			<span
-			  aria-hidden={i === stateIndex ? false : true}
-			  >
-			  {name}
-			</span>
-		  {/each}
-		</p>
-	  </div>
-	  <Illustration
-		{sliderPosition}
-		{stateData}
-		{stateIndex}
-	  />
-	  <Slider
-		bind:value={stateIndex}
-		bind:sliderPosition={sliderPosition}
-		max={stateData.length - 1}
-	  />
+		<h1>How safe is your PR?</h1>
+		<section class="github-link">
+			<TextField outline placeholder="Github link"/>
+			<Button filled class="submit-default" on:click={() => {data.set({})}}><span class="submit-text">Rate Me!</span></Button>
+		</section>
+		{#if $data}
+			<div>
+				<p style="transform: translateX({$ratingPosition}%);">
+					{#each stateData as { name }, i}
+					<span
+						aria-hidden={i === stateIndex ? false : true}
+						>
+						{name}
+					</span>
+					{/each}
+				</p>
+			</div>
+			<Illustration
+				{sliderPosition}
+				{stateData}
+				{stateIndex}
+			/>
+			<Slider
+				bind:value={stateIndex}
+				bind:sliderPosition={sliderPosition}
+				max={stateData.length - 1}
+			/>
+		{/if}
 	</section>
-  </main>
+</main>
